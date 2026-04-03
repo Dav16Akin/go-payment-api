@@ -6,12 +6,14 @@ import (
 	"net/http"
 
 	"github.com/Dav16Akin/payment-api/internal/handlers"
+	"github.com/Dav16Akin/payment-api/internal/middleware"
 	"github.com/Dav16Akin/payment-api/internal/models"
 	"github.com/Dav16Akin/payment-api/internal/repository"
 	"github.com/Dav16Akin/payment-api/internal/services"
 )
 
 func main() {
+	mux := http.NewServeMux()
 	userRepo := repository.NewUserRepository()
 	transactionRepo := repository.NewTransactionRepository()
 	walletRepo := repository.NewWalletRepository()
@@ -42,9 +44,6 @@ func main() {
 		Balance: 500,
 	})
 
-	userRepo.ListAll()
-	walletRepo.ListAllWallets()
-
 	userService := services.NewUserService(userRepo, walletRepo)
 	userHandler := handlers.NewUserHandler(userService)
 
@@ -54,14 +53,16 @@ func main() {
 	walletService := services.NewWalletService(walletRepo)
 	walletHandler := handlers.NewWalletHandler(walletService)
 
-	http.HandleFunc("/user", userHandler.CreateUser)
-	http.HandleFunc("/transfer", transactionHandler.Transfer)
-	http.HandleFunc("/transactions", transactionHandler.GetAll)
-	http.HandleFunc("/wallet/{user_id}", walletHandler.GetWallet)
+	mux.HandleFunc("/user", userHandler.CreateUser)
+	mux.HandleFunc("/transfer", transactionHandler.Transfer)
+	mux.HandleFunc("/transactions", transactionHandler.GetAll)
+	mux.HandleFunc("/wallet/{user_id}", walletHandler.GetWallet)
 
+
+	loggedMux := middleware.Logging(mux)
 
 	fmt.Println("Server running on PORT 8000")
-	if err := http.ListenAndServe(":8000", nil); err != nil {
+	if err := http.ListenAndServe(":8000", loggedMux); err != nil {
 		log.Fatal(err)
 	}
 }

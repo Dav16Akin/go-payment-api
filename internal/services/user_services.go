@@ -45,7 +45,6 @@ func (s *userService) CreateUser(user *models.User) (*models.User, error) {
 		return nil , err
 	}
 
-	s.repo.ListAll()
 	wallet := &models.Wallet{
 		ID:      user.ID,
         UserID:  user.ID,
@@ -55,8 +54,6 @@ func (s *userService) CreateUser(user *models.User) (*models.User, error) {
 	if err := s.walletRepo.CreateWallet(wallet); err != nil {
         return nil, errors.New("failed to create wallet")
     }
-
-	s.walletRepo.ListAllWallets()
 
 	return user, nil
 }
