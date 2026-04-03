@@ -1,13 +1,16 @@
 # go-payment-api
 
-A simple RESTful payment API built with Go. It supports creating users (with automatic wallet creation) and transferring funds between wallets using in-memory storage.
+A simple RESTful payment API built with Go. It supports creating users (with automatic wallet creation), transferring funds between wallets, querying wallet balances, and listing all transactions — all using in-memory storage.
 
 ## Features
 
 - Create users with automatically provisioned wallets
 - Transfer funds between user wallets
+- Retrieve a user's wallet balance
+- List all recorded transactions
 - In-memory data store (no external database required)
 - Clean layered architecture: handlers → services → repositories
+- Standardised JSON response envelope (`data` / `error`)
 
 ## Project Structure
 
@@ -19,17 +22,22 @@ go-payment-api/
 └── internal/
     ├── handlers/
     │   ├── user_handler.go        # HTTP handler for user creation
-    │   └── transaction_handler.go # HTTP handler for fund transfers
+    │   ├── transaction_handler.go # HTTP handlers for fund transfers and listing transactions
+    │   └── wallet_handler.go      # HTTP handler for wallet lookup
     ├── models/
     │   ├── user_model.go          # User structs and request/response types
-    │   ├── wallet_model.go        # Wallet struct
+    │   ├── wallet_model.go        # Wallet structs and response types
     │   └── transaction_model.go   # Transaction structs and request type
     ├── repository/
     │   ├── user_repository.go     # In-memory user store
-    │   └── wallet_repository.go   # In-memory wallet store
-    └── services/
-        ├── user_services.go       # User creation business logic
-        └── transaction_services.go # Transfer business logic
+    │   ├── wallet_repository.go   # In-memory wallet store
+    │   └── transaction_repository.go # In-memory transaction store
+    ├── services/
+    │   ├── user_services.go       # User creation business logic
+    │   ├── transaction_services.go # Transfer and listing business logic
+    │   └── wallet_services.go     # Wallet lookup business logic
+    └── utils/
+        └── response.go            # Shared JSON response helper
 ```
 
 ## Prerequisites
@@ -57,7 +65,23 @@ go-payment-api/
    go run main.go
    ```
 
-   The server starts on **port 8000**. On startup, two seed users (`David` and `John`) and their wallets are created automatically.
+   The server starts on **port 8000**. On startup, two seed users and wallets are created automatically:
+
+   | User  | User ID | Wallet ID | Starting Balance |
+   |-------|---------|-----------|-----------------|
+   | David | `user1` | `wallet1` | 1000            |
+   | John  | `user2` | `wallet2` | 500             |
+
+## Response Envelope
+
+All endpoints return a consistent JSON envelope:
+
+```json
+{
+  "data": <payload or null>,
+  "error": <"error message" or null>
+}
+```
 
 ## API Endpoints
 
@@ -78,9 +102,12 @@ Creates a new user and provisions an empty wallet for them.
 **Success response (`201 Created`):**
 ```json
 {
-  "ID": "550e8400-e29b-41d4-a716-446655440000",
-  "Name": "Alice",
-  "Email": "alice@example.com"
+  "data": {
+    "ID": "550e8400-e29b-41d4-a716-446655440000",
+    "Name": "Alice",
+    "Email": "alice@example.com"
+  },
+  "error": null
 }
 ```
 
@@ -92,7 +119,7 @@ Creates a new user and provisions an empty wallet for them.
 
 ### Transfer Funds
 
-Transfers an amount from one user's wallet to another.
+Transfers an amount from one wallet to another.
 
 **`POST /transfer`**
 
@@ -105,18 +132,72 @@ Transfers an amount from one user's wallet to another.
 }
 ```
 
-> **Note:** The wallet ID equals the user ID. Use the `ID` returned from `POST /user`, or the seed IDs `user1` / `user2` for testing.
+> **Note:** Use the wallet ID (not the user ID). For seed data, the wallet IDs are `wallet1` and `wallet2`.
 
-**Success response (`200 OK`):**
+**Success response (`201 Created`):**
 ```json
 {
-  "message": "transfer successful"
+  "data": { "message": "transfer successful" },
+  "error": null
 }
 ```
 
 **Error responses:**
-- `400 Bad Request` – sender/receiver wallet not found, amount ≤ 0, or insufficient funds
+- `400 Bad Request` – sender/receiver wallet not found, same sender and receiver, amount ≤ 0, or insufficient funds
 - `405 Method Not Allowed` – non-POST request
+
+---
+
+### Get Wallet
+
+Returns the wallet balance for a given user.
+
+**`GET /wallet/{user_id}`**
+
+**URL parameter:** `user_id` – the ID of the user whose wallet to retrieve.
+
+**Success response (`200 OK`):**
+```json
+{
+  "data": {
+    "UserID": "user1",
+    "Balance": 1000
+  },
+  "error": null
+}
+```
+
+**Error responses:**
+- `400 Bad Request` – missing `user_id`
+- `404 Not Found` – wallet not found for the given user
+- `405 Method Not Allowed` – non-GET request
+
+---
+
+### List Transactions
+
+Returns all recorded transactions.
+
+**`GET /transactions`**
+
+**Success response (`200 OK`):**
+```json
+{
+  "data": [
+    {
+      "ID": "550e8400-e29b-41d4-a716-446655440000",
+      "SenderID": "wallet1",
+      "ReceiverID": "wallet2",
+      "Amount": 100,
+      "Status": "completed"
+    }
+  ],
+  "error": null
+}
+```
+
+**Error responses:**
+- `405 Method Not Allowed` – non-GET request
 
 ## Example Usage
 
@@ -126,10 +207,16 @@ curl -X POST http://localhost:8000/user \
   -H "Content-Type: application/json" \
   -d '{"name": "Alice", "email": "alice@example.com"}'
 
-# Transfer funds between seed wallets
+# Transfer funds between seed wallets (using wallet IDs)
 curl -X POST http://localhost:8000/transfer \
   -H "Content-Type: application/json" \
-  -d '{"sender_id": "user1", "receiver_id": "user2", "amount": 200}'
+  -d '{"sender_id": "wallet1", "receiver_id": "wallet2", "amount": 200}'
+
+# Get a user's wallet balance
+curl http://localhost:8000/wallet/user1
+
+# List all transactions
+curl http://localhost:8000/transactions
 ```
 
 ## Dependencies
