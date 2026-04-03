@@ -1,8 +1,6 @@
 package repository
 
 import (
-	"fmt"
-
 	"github.com/Dav16Akin/payment-api/internal/models"
 )
 
@@ -10,8 +8,6 @@ type WalletRepository interface {
 	CreateWallet(w *models.Wallet) error
 	FindWallet(id string) (*models.Wallet, error)
 	FindWalletByUserId(id string) (*models.Wallet, error)
-	ListAllWallets()
-
 }
 
 type walletRepository struct {
@@ -45,12 +41,4 @@ func (r *walletRepository) FindWalletByUserId(id string) (*models.Wallet, error)
 	}
 
 	return nil, nil
-}
-
-func (r *walletRepository) ListAllWallets() {
-	fmt.Println("\n--- Wallets---")
-	for _, u := range r.wallets {
-		fmt.Printf("ID: %s | Balance: %g\n", u.ID, u.Balance)
-	}
-	fmt.Println("--------------------------")
 }

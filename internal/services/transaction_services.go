@@ -68,8 +68,6 @@ func (t *transactionService) Transfer(transaction *models.Transaction) error {
 		return errors.New("failed to save transaction")
 	}
 
-	t.walletRepo.ListAllWallets()
-
 	return nil
 }
 
