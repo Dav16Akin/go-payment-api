@@ -6,10 +6,12 @@ import (
 
 	"github.com/Dav16Akin/payment-api/internal/models"
 	"github.com/Dav16Akin/payment-api/internal/services"
+	"github.com/Dav16Akin/payment-api/internal/utils"
 )
 
 type TransactionHandler interface {
 	Transfer(w http.ResponseWriter, r *http.Request)
+	GetAll(w http.ResponseWriter, r *http.Request)
 }
 
 type transactionHandler struct {
@@ -20,34 +22,54 @@ func NewTransactionHandler(services services.TransactionService) TransactionHand
 	return &transactionHandler{services: services}
 }
 
-func (s *transactionHandler) Transfer(w http.ResponseWriter, r *http.Request) {
+func (h *transactionHandler) Transfer(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.JSONResponse(w, http.StatusMethodNotAllowed, nil, "method not allowed")
+		return
+	}
+
 	if r.Method == "POST" {
 		var req models.TransactionRequest
 
 		err := json.NewDecoder(r.Body).Decode(&req)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			utils.JSONResponse(w, http.StatusBadRequest, nil, "invalid request body")
+			return
 		}
 
 		defer r.Body.Close()
 
 		transaction := models.Transaction{
 			SenderID:   req.SenderID,
-			RecieverID: req.RecieverID,
+			ReceiverID: req.ReceiverID,
 			Amount:     req.Amount,
-			Status:     "Pending",
+			Status:     "pending",
 		}
 
-		if err := s.services.Transfer(&transaction); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+		if err := h.services.Transfer(&transaction); err != nil {
+			utils.JSONResponse(w, http.StatusBadRequest, nil, err.Error())
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{
+		utils.JSONResponse(w, http.StatusCreated, map[string]string{
 			"message": "transfer successful",
-		})
-	}else {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}, "")
+	}
+}
+
+func (h *transactionHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		utils.JSONResponse(w, http.StatusMethodNotAllowed, nil, "method not allowed")
+		return
+	}
+
+	if r.Method == "GET" {
+		transactions, err := h.services.GetAll()
+		if err != nil {
+			utils.JSONResponse(w, http.StatusInternalServerError, nil, "cannot get transactions")
+			return
+		}
+
+		utils.JSONResponse(w, http.StatusOK, transactions, "")
 	}
 }

@@ -13,6 +13,10 @@ import (
 
 func main() {
 	userRepo := repository.NewUserRepository()
+	transactionRepo := repository.NewTransactionRepository()
+	walletRepo := repository.NewWalletRepository()
+
+
 	userRepo.CreateUser(&models.User{
 		ID:    "user1",
 		Name:  "David",
@@ -25,7 +29,6 @@ func main() {
 		Email: "john@test.com",
 	})
 
-	walletRepo := repository.NewWalletRepository()
 
 	walletRepo.CreateWallet(&models.Wallet{
 		ID:      "wallet1",
@@ -39,18 +42,22 @@ func main() {
 		Balance: 500,
 	})
 
-
 	userRepo.ListAll()
 	walletRepo.ListAllWallets()
 
 	userService := services.NewUserService(userRepo, walletRepo)
-
 	userHandler := handlers.NewUserHandler(userService)
-	transactionService := services.NewTransactionService(walletRepo)
+
+	transactionService := services.NewTransactionService(walletRepo, transactionRepo)
 	transactionHandler := handlers.NewTransactionHandler(transactionService)
+
+	walletService := services.NewWalletService(walletRepo)
+	walletHandler := handlers.NewWalletHandler(walletService)
 
 	http.HandleFunc("/user", userHandler.CreateUser)
 	http.HandleFunc("/transfer", transactionHandler.Transfer)
+	http.HandleFunc("/transactions", transactionHandler.GetAll)
+	http.HandleFunc("/wallet/{user_id}", walletHandler.GetWallet)
 
 
 	fmt.Println("Server running on PORT 8000")
