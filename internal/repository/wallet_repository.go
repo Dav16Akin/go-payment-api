@@ -1,44 +1,58 @@
 package repository
 
 import (
+	"database/sql"
+	"errors"
+
 	"github.com/Dav16Akin/payment-api/internal/models"
 )
 
 type WalletRepository interface {
-	CreateWallet(w *models.Wallet) error
 	FindWallet(id string) (*models.Wallet, error)
 	FindWalletByUserId(id string) (*models.Wallet, error)
 }
 
 type walletRepository struct {
-	wallets []*models.Wallet
+	db *sql.DB
 }
 
-func NewWalletRepository() WalletRepository {
-	return &walletRepository{wallets: []*models.Wallet{}}
+func NewWalletRepository(db *sql.DB) WalletRepository {
+	return &walletRepository{db: db}
 }
 
-func (r *walletRepository) CreateWallet(w *models.Wallet) error {
-	r.wallets = append(r.wallets, w)
-	return nil
-}
+var ErrWalletNotFound = errors.New("wallet not found")
+
 
 func (r *walletRepository) FindWallet(id string) (*models.Wallet, error) {
-	for _, w := range r.wallets {
-		if w.ID == id {
-			return w, nil
+	var wallet models.Wallet
+
+	query := `SELECT id, user_id, balance FROM wallets WHERE id=$1`
+
+	err := r.db.QueryRow(query, id).Scan(&wallet.ID, &wallet.UserID, &wallet.Balance)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil , ErrWalletNotFound
 		}
+
+		return nil , err
 	}
 
-	return nil, nil
+	return &wallet, nil
 }
 
 func (r *walletRepository) FindWalletByUserId(id string) (*models.Wallet, error) {
-	for _, w := range r.wallets {
-		if w.UserID == id {
-			return w, nil
+	var wallet models.Wallet
+	
+	query := `SELECT id, user_id, balance FROM wallets WHERE user_id=$1`
+
+	err := r.db.QueryRow(query, id).Scan(&wallet.ID, &wallet.UserID, &wallet.Balance)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil , ErrWalletNotFound
 		}
+
+		return nil , err
 	}
 
-	return nil, nil
+	return &wallet, nil
 }

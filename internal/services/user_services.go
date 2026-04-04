@@ -1,6 +1,7 @@
 package services
 
 import (
+	"database/sql"
 	"errors"
 
 	"github.com/Dav16Akin/payment-api/internal/models"
@@ -13,7 +14,7 @@ type UserService interface {
 }
 
 type userService struct {
-	repo repository.UserRepository
+	repo       repository.UserRepository
 	walletRepo repository.WalletRepository
 }
 
@@ -27,36 +28,30 @@ func (s *userService) CreateUser(user *models.User) (*models.User, error) {
 	}
 
 	if user.Email == "" {
-		return nil , errors.New("Email is required")
+		return nil, errors.New("Email is required")
 	}
 
 	existingUser, err := s.repo.FindUserByEmail(user.Email)
-	if err != nil {
-		return nil , err
+
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
 	}
 
 	if existingUser != nil {
-		return nil , errors.New("email already exists")
+		return nil, errors.New("email already exists")
 	}
 
 	user.ID = uuid.New().String()
 
-	if err := s.repo.CreateUser(user); err != nil{
-		return nil , err
-	}
-
 	wallet := &models.Wallet{
 		ID:      user.ID,
-        UserID:  user.ID,
-        Balance: 0.0,
+		UserID:  user.ID,
+		Balance: 0.0,
 	}
 
-	if err := s.walletRepo.CreateWallet(wallet); err != nil {
-        return nil, errors.New("failed to create wallet")
-    }
+	if err := s.repo.CreateUserWithWallet(user, wallet); err != nil {
+		return nil, err
+	}
 
 	return user, nil
 }
-
-
-

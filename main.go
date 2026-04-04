@@ -5,44 +5,37 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/Dav16Akin/payment-api/internal/database"
 	"github.com/Dav16Akin/payment-api/internal/handlers"
 	"github.com/Dav16Akin/payment-api/internal/middleware"
-	"github.com/Dav16Akin/payment-api/internal/models"
 	"github.com/Dav16Akin/payment-api/internal/repository"
 	"github.com/Dav16Akin/payment-api/internal/services"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("No .env file found")
+	}
+
+	db, err := database.ConnectToDB()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := database.InitializeDB(db); err != nil {
+		log.Fatal(err)
+	}
+
+	defer db.Close()
+
 	mux := http.NewServeMux()
-	userRepo := repository.NewUserRepository()
+
+	userRepo := repository.NewUserRepository(db)
 	transactionRepo := repository.NewTransactionRepository()
-	walletRepo := repository.NewWalletRepository()
-
-
-	userRepo.CreateUser(&models.User{
-		ID:    "user1",
-		Name:  "David",
-		Email: "david@test.com",
-	})
-
-	userRepo.CreateUser(&models.User{
-		ID:    "user2",
-		Name:  "John",
-		Email: "john@test.com",
-	})
-
-
-	walletRepo.CreateWallet(&models.Wallet{
-		ID:      "wallet1",
-		UserID:  "user1",
-		Balance: 1000,
-	})
-
-	walletRepo.CreateWallet(&models.Wallet{
-		ID:      "wallet2",
-		UserID:  "user2",
-		Balance: 500,
-	})
+	walletRepo := repository.NewWalletRepository(db)
 
 	userService := services.NewUserService(userRepo, walletRepo)
 	userHandler := handlers.NewUserHandler(userService)
@@ -57,7 +50,6 @@ func main() {
 	mux.HandleFunc("/transfer", transactionHandler.Transfer)
 	mux.HandleFunc("/transactions", transactionHandler.GetAll)
 	mux.HandleFunc("/wallet/{user_id}", walletHandler.GetWallet)
-
 
 	loggedMux := middleware.Logging(mux)
 
