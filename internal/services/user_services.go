@@ -46,7 +46,7 @@ func (s *userService) CreateUser(user *models.User) (*models.User, error) {
 	wallet := &models.Wallet{
 		ID:      user.ID,
 		UserID:  user.ID,
-		Balance: 0.0,
+		Balance: 0.00,
 	}
 
 	if err := s.repo.CreateUserWithWallet(user, wallet); err != nil {

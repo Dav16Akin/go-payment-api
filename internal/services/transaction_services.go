@@ -55,17 +55,15 @@ func (t *transactionService) Transfer(transaction *models.Transaction) error {
 
 	transaction.ID = uuid.New().String()
 
-	senderWallet.Balance -= transaction.Amount
-	receiverWallet.Balance += transaction.Amount
+	transaction.Status = "pending"
 
-	transaction.Status = "completed"
+	err =  t.transactionRepo.Transfer(transaction)
+	if err != nil {
+		transaction.Status = "failed"
 
-	if err := t.transactionRepo.Save(transaction); err != nil {
+		_ = t.transactionRepo.Save(transaction) // ignore error for now
 
-		senderWallet.Balance += transaction.Amount
-		receiverWallet.Balance -= transaction.Amount
-
-		return errors.New("failed to save transaction")
+		return err
 	}
 
 	return nil

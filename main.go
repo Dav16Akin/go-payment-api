@@ -34,7 +34,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	userRepo := repository.NewUserRepository(db)
-	transactionRepo := repository.NewTransactionRepository()
+	transactionRepo := repository.NewTransactionRepository(db)
 	walletRepo := repository.NewWalletRepository(db)
 
 	userService := services.NewUserService(userRepo, walletRepo)
