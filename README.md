@@ -1,6 +1,6 @@
 # go-payment-api
 
-A simple RESTful payment API built with Go. It supports creating users (with automatic wallet creation), transferring funds between wallets, querying wallet balances, and listing all transactions — all using in-memory storage.
+A simple RESTful payment API built with Go. It supports creating users (with automatic wallet creation), transferring funds between wallets, querying wallet balances, and listing all transactions — backed by a PostgreSQL database.
 
 ## Features
 
@@ -8,7 +8,9 @@ A simple RESTful payment API built with Go. It supports creating users (with aut
 - Transfer funds between user wallets
 - Retrieve a user's wallet balance
 - List all recorded transactions
-- In-memory data store (no external database required)
+- PostgreSQL database with auto-initialised schema
+- HTTP request logging middleware
+- Environment-based configuration via `.env`
 - Clean layered architecture: handlers → services → repositories
 - Standardised JSON response envelope (`data` / `error`)
 
@@ -16,22 +18,27 @@ A simple RESTful payment API built with Go. It supports creating users (with aut
 
 ```
 go-payment-api/
-├── main.go                        # Entry point, seeds data and starts the HTTP server
+├── main.go                        # Entry point, connects to DB and starts the HTTP server
 ├── go.mod
 ├── go.sum
 └── internal/
+    ├── database/
+    │   ├── database.go            # PostgreSQL connection (reads DATABASE_URL)
+    │   └── schema.go              # Auto-creates users, wallets, transactions tables
     ├── handlers/
     │   ├── user_handler.go        # HTTP handler for user creation
     │   ├── transaction_handler.go # HTTP handlers for fund transfers and listing transactions
     │   └── wallet_handler.go      # HTTP handler for wallet lookup
+    ├── middleware/
+    │   └── logging.go             # HTTP request logging middleware
     ├── models/
     │   ├── user_model.go          # User structs and request/response types
     │   ├── wallet_model.go        # Wallet structs and response types
     │   └── transaction_model.go   # Transaction structs and request type
     ├── repository/
-    │   ├── user_repository.go     # In-memory user store
-    │   ├── wallet_repository.go   # In-memory wallet store
-    │   └── transaction_repository.go # In-memory transaction store
+    │   ├── user_repository.go     # PostgreSQL user store
+    │   ├── wallet_repository.go   # PostgreSQL wallet store
+    │   └── transaction_repository.go # PostgreSQL transaction store
     ├── services/
     │   ├── user_services.go       # User creation business logic
     │   ├── transaction_services.go # Transfer and listing business logic
@@ -43,6 +50,7 @@ go-payment-api/
 ## Prerequisites
 
 - [Go](https://golang.org/dl/) 1.21+
+- [PostgreSQL](https://www.postgresql.org/) 13+
 
 ## Getting Started
 
@@ -53,24 +61,33 @@ go-payment-api/
    cd go-payment-api
    ```
 
-2. **Install dependencies**
+2. **Configure the database**
+
+   Create a `.env` file in the project root with your PostgreSQL connection string:
+
+   ```env
+   DATABASE_URL=postgres://<user>:<password>@<host>:<port>/<dbname>?sslmode=disable
+   ```
+
+   > The application will automatically create the `users`, `wallets`, and `transactions` tables on startup if they do not already exist.
+
+3. **Install dependencies**
 
    ```bash
    go mod tidy
    ```
 
-3. **Run the server**
+4. **Run the server**
 
    ```bash
    go run main.go
    ```
 
-   The server starts on **port 8000**. On startup, two seed users and wallets are created automatically:
+   The server starts on **port 8000**. All incoming requests are logged to stdout in the format:
 
-   | User  | User ID | Wallet ID | Starting Balance |
-   |-------|---------|-----------|-----------------|
-   | David | `user1` | `wallet1` | 1000            |
-   | John  | `user2` | `wallet2` | 500             |
+   ```
+   <METHOD> <PATH> <STATUS_CODE> <DURATION>
+   ```
 
 ## Response Envelope
 
@@ -189,7 +206,8 @@ Returns all recorded transactions.
       "SenderID": "wallet1",
       "ReceiverID": "wallet2",
       "Amount": 100,
-      "Status": "completed"
+      "Status": "completed",
+      "CreatedAt": "2024-01-15T10:30:00Z"
     }
   ],
   "error": null
@@ -198,6 +216,8 @@ Returns all recorded transactions.
 
 **Error responses:**
 - `405 Method Not Allowed` – non-GET request
+
+> **Note:** The `created_at` field is a UTC timestamp set automatically by the database.
 
 ## Example Usage
 
@@ -224,6 +244,8 @@ curl http://localhost:8000/transactions
 | Package | Version | Purpose |
 |---------|---------|---------|
 | [github.com/google/uuid](https://github.com/google/uuid) | v1.6.0 | UUID generation for user/transaction IDs |
+| [github.com/lib/pq](https://github.com/lib/pq) | v1.12.2 | PostgreSQL driver for `database/sql` |
+| [github.com/joho/godotenv](https://github.com/joho/godotenv) | v1.5.1 | Load environment variables from `.env` |
 
 ## License
 
