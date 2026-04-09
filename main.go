@@ -55,13 +55,13 @@ func main() {
 	mux.HandleFunc("/sign-in", userHandler.SignIn)
 	mux.HandleFunc("/transfer", transactionHandler.Transfer)
 	mux.HandleFunc("/transactions", transactionHandler.GetAll)
-	mux.HandleFunc("/transactions/{user_id}", transactionHandler.GetByUser)
-	mux.HandleFunc("/wallet/{user_id}", walletHandler.GetWallet)
+	mux.HandleFunc("/transactions", transactionHandler.GetByUser)
+	mux.HandleFunc("/wallet", walletHandler.GetWallet)
 
-	loggedMux := middleware.Logging(mux)
+	handler := middleware.Logging(middleware.CORSMiddleware(mux))
 
 	fmt.Println("Server running on PORT", port)
-	if err := http.ListenAndServe(":"+port, loggedMux); err != nil {
+	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatal(err)
 	}
 }

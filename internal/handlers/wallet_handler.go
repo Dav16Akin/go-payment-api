@@ -28,7 +28,7 @@ func (h *walletHandler) GetWallet(w http.ResponseWriter, r *http.Request) {
 
 	
 	if r.Method == "GET" {
-		id := r.PathValue("user_id")
+		id := r.URL.Query().Get("user_id")
 
 		if id == "" {
 			utils.JSONResponse(w, http.StatusBadRequest, nil, "user_id is required")
