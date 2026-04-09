@@ -26,8 +26,8 @@ func (r *userRepository) CreateUserWithWallet(user *models.User, wallet *models.
 	}
 	defer tx.Rollback() // rollback if anything fails
 
-	userQuery := `INSERT INTO users (id, name , email) VALUES ($1,$2,$3)`
-	_, err = tx.Exec(userQuery, user.ID, user.Name, user.Email)
+	userQuery := `INSERT INTO users (id, name , email, password) VALUES ($1,$2,$3,$4)`
+	_, err = tx.Exec(userQuery, user.ID, user.Name, user.Email, user.Password)
 	if err != nil {
 		return err
 	}
@@ -44,9 +44,9 @@ func (r *userRepository) CreateUserWithWallet(user *models.User, wallet *models.
 func (r *userRepository) FindUserByEmail(email string) (*models.User, error) {
 	var user models.User
 
-	query := `SELECT id , name, email FROM users WHERE email=$1`
+	query := `SELECT id , name, email, password FROM users WHERE email=$1`
 
-	err := r.db.QueryRow(query, email).Scan(&user.ID, &user.Name, &user.Email)
+	err := r.db.QueryRow(query, email).Scan(&user.ID, &user.Name, &user.Email, &user.Password)
 
 	if err == sql.ErrNoRows {
 		return nil, nil 

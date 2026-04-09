@@ -12,6 +12,7 @@ import (
 type TransactionHandler interface {
 	Transfer(w http.ResponseWriter, r *http.Request)
 	GetAll(w http.ResponseWriter, r *http.Request)
+	GetByUser(w http.ResponseWriter, r *http.Request)
 }
 
 type transactionHandler struct {
@@ -67,6 +68,30 @@ func (h *transactionHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		transactions, err := h.services.GetAll()
 		if err != nil {
 			utils.JSONResponse(w, http.StatusInternalServerError, nil, "cannot get transactions")
+			return
+		}
+
+		utils.JSONResponse(w, http.StatusOK, transactions, "")
+	}
+}
+
+func (h *transactionHandler) GetByUser(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		utils.JSONResponse(w, http.StatusMethodNotAllowed, nil, "method not allowed")
+		return
+	}
+
+	if r.Method == "GET" {
+		id := r.PathValue("user_id")
+
+		if id == "" {
+			utils.JSONResponse(w, http.StatusBadRequest, nil, "user_id is required")
+			return
+		}
+
+		transactions , err := h.services.GetByUser(id)
+		if err != nil {
+			utils.JSONResponse(w, http.StatusNotFound, nil, "no transactions found")
 			return
 		}
 

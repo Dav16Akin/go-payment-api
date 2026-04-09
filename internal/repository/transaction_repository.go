@@ -11,6 +11,7 @@ type TransactionRepository interface {
 	Save(transaction *models.Transaction) error
 	GetAll() ([]*models.Transaction, error)
 	Transfer(transaction *models.Transaction) error
+	GetByUser(id string) ([]*models.Transaction, error)
 }
 
 type transactionRepository struct {
@@ -123,6 +124,37 @@ func (t *transactionRepository) GetAll() ([]*models.Transaction, error) {
 			&tx.Amount,
 			&tx.Status,
 		)
+		if err != nil {
+			return nil, err
+		}
+
+		transactions = append(transactions, &tx)
+	}
+
+	return transactions, nil
+}
+
+func (t *transactionRepository) GetByUser(id string) ([]*models.Transaction, error) {
+	query := `SELECT id, sender_id, receiver_id, amount, status FROM transactions WHERE sender_id=$1 OR receiver_id=$1`
+
+	rows , err := t.db.Query(query, id)
+	if err != nil {
+		return nil , err
+	}
+
+	var transactions []*models.Transaction
+
+	for rows.Next() {
+		var tx models.Transaction
+
+		err := rows.Scan(
+			&tx.ID,
+			&tx.SenderID,
+			&tx.ReceiverID,
+			&tx.Amount,
+			&tx.Status,
+		)
+
 		if err != nil {
 			return nil, err
 		}

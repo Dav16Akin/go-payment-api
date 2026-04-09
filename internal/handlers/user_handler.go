@@ -11,7 +11,8 @@ import (
 )
 
 type UserHandler interface {
-	CreateUser(w http.ResponseWriter, r *http.Request)
+	SignUp(w http.ResponseWriter, r *http.Request)
+	SignIn(w http.ResponseWriter, r *http.Request)
 }
 
 type userHandler struct {
@@ -22,12 +23,11 @@ func NewUserHandler(service services.UserService) UserHandler {
 	return &userHandler{service: service}
 }
 
-func (h *userHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
+func (h *userHandler) SignUp(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		utils.JSONResponse(w, http.StatusMethodNotAllowed, nil, "method not allowed")
 		return
 	}
-
 
 	if r.Method == "POST" {
 		var req models.CreateUserRequest
@@ -45,11 +45,12 @@ func (h *userHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		user := models.User{
-			Name:  strings.TrimSpace(req.Name),
-			Email: strings.TrimSpace(req.Email),
+			Name:     strings.TrimSpace(req.Name),
+			Email:    strings.TrimSpace(req.Email),
+			Password: strings.TrimSpace(req.Password),
 		}
 
-		createdUser, err := h.service.CreateUser(&user)
+		createdUser, err := h.service.SignUp(&user)
 		if err != nil {
 			utils.JSONResponse(w, http.StatusBadRequest, nil, err.Error())
 			return
@@ -62,5 +63,42 @@ func (h *userHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		}
 
 		utils.JSONResponse(w, http.StatusCreated, resp, "")
+	}
+}
+
+func (h *userHandler) SignIn(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.JSONResponse(w, http.StatusMethodNotAllowed, nil, "method not allowed")
+		return
+	}
+
+	if r.Method == "POST" {
+		var req models.SignInRequest
+
+		err := json.NewDecoder(r.Body).Decode(&req)
+		if err != nil {
+			utils.JSONResponse(w, http.StatusBadRequest, nil, "invalid credentials")
+			return
+		}
+
+		request := models.SignInRequest{
+			Email: req.Email,
+			Password: req.Password,
+		}
+
+		user, token, err := h.service.SignIn(&request)
+		if err != nil {
+			utils.JSONResponse(w, http.StatusUnauthorized, nil, err.Error())
+			return
+		}
+
+		utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+			"token": token,
+			"user": map[string]string{
+				"id":    user.ID,
+				"name":  user.Name,
+				"email": user.Email,
+			},
+		}, "")
 	}
 }

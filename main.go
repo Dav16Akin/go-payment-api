@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/Dav16Akin/payment-api/internal/database"
 	"github.com/Dav16Akin/payment-api/internal/handlers"
@@ -16,6 +17,10 @@ import (
 
 func main() {
 	err := godotenv.Load()
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8000"
+	}
 	if err != nil {
 		log.Println("No .env file found")
 	}
@@ -46,15 +51,17 @@ func main() {
 	walletService := services.NewWalletService(walletRepo)
 	walletHandler := handlers.NewWalletHandler(walletService)
 
-	mux.HandleFunc("/user", userHandler.CreateUser)
+	mux.HandleFunc("/sign-up", userHandler.SignUp)
+	mux.HandleFunc("/sign-in", userHandler.SignIn)
 	mux.HandleFunc("/transfer", transactionHandler.Transfer)
 	mux.HandleFunc("/transactions", transactionHandler.GetAll)
+	mux.HandleFunc("/transactions/{user_id}", transactionHandler.GetByUser)
 	mux.HandleFunc("/wallet/{user_id}", walletHandler.GetWallet)
 
 	loggedMux := middleware.Logging(mux)
 
-	fmt.Println("Server running on PORT 8000")
-	if err := http.ListenAndServe(":8000", loggedMux); err != nil {
+	fmt.Println("Server running on PORT", port)
+	if err := http.ListenAndServe(":"+port, loggedMux); err != nil {
 		log.Fatal(err)
 	}
 }

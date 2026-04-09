@@ -11,6 +11,7 @@ import (
 type TransactionService interface {
 	Transfer(transaction *models.Transaction) error
 	GetAll() ([]*models.Transaction, error)
+	GetByUser(id string) ([]*models.Transaction, error)
 }
 
 type transactionService struct {
@@ -57,7 +58,7 @@ func (t *transactionService) Transfer(transaction *models.Transaction) error {
 
 	transaction.Status = "pending"
 
-	err =  t.transactionRepo.Transfer(transaction)
+	err = t.transactionRepo.Transfer(transaction)
 	if err != nil {
 		transaction.Status = "failed"
 
@@ -71,6 +72,19 @@ func (t *transactionService) Transfer(transaction *models.Transaction) error {
 
 func (t *transactionService) GetAll() ([]*models.Transaction, error) {
 	transactions, err := t.transactionRepo.GetAll()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(transactions) == 0 {
+		return []*models.Transaction{}, nil
+	}
+
+	return transactions, nil
+}
+
+func (t *transactionService) GetByUser(id string) ([]*models.Transaction, error) {
+	transactions, err := t.transactionRepo.GetByUser(id)
 	if err != nil {
 		return nil, err
 	}
