@@ -16,13 +16,11 @@ import (
 )
 
 func main() {
-	err := godotenv.Load()
+	godotenv.Load()
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8000"
-	}
-	if err != nil {
-		log.Println("No .env file found")
 	}
 
 	db, err := database.ConnectToDB()
@@ -55,7 +53,7 @@ func main() {
 	mux.HandleFunc("/sign-in", userHandler.SignIn)
 	mux.HandleFunc("/transfer", transactionHandler.Transfer)
 	mux.HandleFunc("/transactions", transactionHandler.GetAll)
-	mux.HandleFunc("/transactions", transactionHandler.GetByUser)
+	mux.HandleFunc("/transactions/user", transactionHandler.GetByUser)
 	mux.HandleFunc("/wallet", walletHandler.GetWallet)
 
 	handler := middleware.Logging(middleware.CORSMiddleware(mux))
