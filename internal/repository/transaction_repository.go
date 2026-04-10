@@ -135,7 +135,7 @@ func (t *transactionRepository) GetAll() ([]*models.Transaction, error) {
 }
 
 func (t *transactionRepository) GetByUser(id string) ([]*models.Transaction, error) {
-	query := `SELECT id, sender_id, receiver_id, amount, status FROM transactions WHERE sender_id=$1 OR receiver_id=$1`
+	query := `SELECT id, sender_id, receiver_id, amount, status, created_at FROM transactions WHERE sender_id=$1 OR receiver_id=$1`
 
 	rows , err := t.db.Query(query, id)
 	if err != nil {
@@ -153,6 +153,7 @@ func (t *transactionRepository) GetByUser(id string) ([]*models.Transaction, err
 			&tx.ReceiverID,
 			&tx.Amount,
 			&tx.Status,
+			&tx.CreatedAt,
 		)
 
 		if err != nil {

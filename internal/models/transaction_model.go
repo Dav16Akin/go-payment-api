@@ -1,11 +1,14 @@
 package models
 
+import "time"
+
 type Transaction struct {
 	ID         string
 	SenderID   string
 	ReceiverID string
 	Amount     float64
 	Status     string
+	CreatedAt  time.Time
 }
 
 type TransactionRequest struct {
