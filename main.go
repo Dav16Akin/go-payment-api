@@ -23,14 +23,20 @@ func main() {
 		port = "8000"
 	}
 
+	log.Println("Starting server...")
+	log.Println("PORT:", port)
+	log.Println("DATABASE_PUBLIC_URL set:", os.Getenv("DATABASE_PUBLIC_URL") != "")
+
 	db, err := database.ConnectToDB()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to connect to DB:", err)
 	}
+	log.Println("DB connected successfully")
 
 	if err := database.InitializeDB(db); err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to initialize DB:", err)
 	}
+	log.Println("DB initialized successfully")
 
 	defer db.Close()
 

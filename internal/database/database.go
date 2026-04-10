@@ -9,7 +9,11 @@ import (
 )
 
 func ConnectToDB() (*sql.DB, error) {
-	dsn := os.Getenv("DATABASE_URL")
+	dsn := os.Getenv("DATABASE_PUBLIC_URL") + "?sslmode=require"
+
+	if dsn == "" {
+		return nil, fmt.Errorf("DATABASE_PUBLIC_URL is not set")
+	}
 
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
