@@ -77,12 +77,12 @@ func (s *userService) SignUp(user *models.User) (*models.User, error) {
 func (s *userService) SignIn(req *models.SignInRequest) (*models.User, string, error) {
 	user, err := s.repo.FindUserByEmail(req.Email)
 	if err != nil {
-		return nil, "" , errors.New("cannot find user")
+		return nil, "" , errors.New("user not found")
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil {
-		return nil, "", errors.New("invalid credentials pass")
+		return nil, "", errors.New("invalid credentials")
 	}
 
 	token := "mock-token"
