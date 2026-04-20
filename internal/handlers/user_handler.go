@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Dav16Akin/payment-api/internal/middleware"
 	"github.com/Dav16Akin/payment-api/internal/models"
 	"github.com/Dav16Akin/payment-api/internal/services"
 	"github.com/Dav16Akin/payment-api/internal/utils"
@@ -13,6 +14,8 @@ import (
 type UserHandler interface {
 	SignUp(w http.ResponseWriter, r *http.Request)
 	SignIn(w http.ResponseWriter, r *http.Request)
+	UpdateProfile(w http.ResponseWriter, r *http.Request)
+	
 }
 
 type userHandler struct {
@@ -82,7 +85,7 @@ func (h *userHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 		}
 
 		request := models.SignInRequest{
-			Email: req.Email,
+			Email:    req.Email,
 			Password: req.Password,
 		}
 
@@ -101,4 +104,41 @@ func (h *userHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 			},
 		}, "")
 	}
+}
+
+func (h *userHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method != http.MethodPatch {
+		utils.JSONResponse(w, http.StatusMethodNotAllowed, nil, "method not allowed")
+		return
+	}
+
+	var req models.UpdateProfileRequest
+	
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+	if !ok {
+		utils.JSONResponse(w, http.StatusUnauthorized, nil, "unauthorized")
+		return
+	}
+
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		utils.JSONResponse(w, http.StatusBadRequest, nil, "invalid requeest body")
+		return
+	}
+
+	user, err := h.service.UpdateProfile(userID, &req)
+	if err != nil {
+		utils.JSONResponse(w, http.StatusBadRequest, nil, err.Error())
+		return
+	}
+
+	response := models.UpdateProfileResponse{
+		ID:        user.ID,
+		Name:      user.Name,
+		AvatarURL: user.AvatarURL,
+	}
+
+	utils.JSONResponse(w, http.StatusCreated, response, "")
+
 }

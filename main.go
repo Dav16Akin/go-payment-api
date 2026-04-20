@@ -31,6 +31,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to connect to DB:", err)
 	}
+	defer db.Close()
 	log.Println("DB connected successfully")
 
 	if err := database.InitializeDB(db); err != nil {
@@ -38,7 +39,10 @@ func main() {
 	}
 	log.Println("DB initialized successfully")
 
-	defer db.Close()
+	err = database.RunMigrations(db)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	mux := http.NewServeMux()
 
@@ -55,12 +59,19 @@ func main() {
 	walletService := services.NewWalletService(walletRepo)
 	walletHandler := handlers.NewWalletHandler(walletService)
 
+	protected := middleware.AuthMiddleware
+
+	protectedHandler := func(h http.HandlerFunc) http.Handler {
+		return protected(h)
+	}
+
 	mux.HandleFunc("/sign-up", userHandler.SignUp)
 	mux.HandleFunc("/sign-in", userHandler.SignIn)
-	mux.HandleFunc("/transfer", transactionHandler.Transfer)
-	mux.HandleFunc("/transactions", transactionHandler.GetAll)
-	mux.HandleFunc("/transactions/user", transactionHandler.GetByUser)
-	mux.HandleFunc("/wallet", walletHandler.GetWallet)
+	mux.Handle("/transfer", protectedHandler(transactionHandler.Transfer))
+	mux.Handle("/transactions", protectedHandler(transactionHandler.GetAll))
+	mux.Handle("/transactions/user", protectedHandler(transactionHandler.GetByUser))
+	mux.Handle("/wallet", protectedHandler(walletHandler.GetWallet))
+	mux.Handle("/users/profile", protectedHandler(userHandler.UpdateProfile))
 
 	handler := middleware.Logging(middleware.CORSMiddleware(mux))
 

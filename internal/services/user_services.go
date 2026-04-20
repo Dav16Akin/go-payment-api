@@ -6,6 +6,7 @@ import (
 
 	"github.com/Dav16Akin/payment-api/internal/models"
 	"github.com/Dav16Akin/payment-api/internal/repository"
+	"github.com/Dav16Akin/payment-api/internal/utils"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -13,6 +14,7 @@ import (
 type UserService interface {
 	SignUp(user *models.User) (*models.User, error)
 	SignIn(req *models.SignInRequest) (*models.User, string, error)
+	UpdateProfile(userID string, req *models.UpdateProfileRequest) (*models.User, error)
 }
 
 type userService struct {
@@ -55,9 +57,9 @@ func (s *userService) SignUp(user *models.User) (*models.User, error) {
 	user.ID = uuid.New().String()
 
 	userData := &models.User{
-		ID: user.ID,
-		Name: user.Name,
-		Email: user.Email,
+		ID:       user.ID,
+		Name:     user.Name,
+		Email:    user.Email,
 		Password: string(hashedPassword),
 	}
 
@@ -77,7 +79,7 @@ func (s *userService) SignUp(user *models.User) (*models.User, error) {
 func (s *userService) SignIn(req *models.SignInRequest) (*models.User, string, error) {
 	user, err := s.repo.FindUserByEmail(req.Email)
 	if err != nil {
-		return nil, "" , errors.New("user not found")
+		return nil, "", errors.New("user not found")
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
@@ -85,7 +87,22 @@ func (s *userService) SignIn(req *models.SignInRequest) (*models.User, string, e
 		return nil, "", errors.New("invalid credentials")
 	}
 
-	token := "mock-token"
-	
+	token, err := utils.GenerateJWT(user.ID)
+	if err != nil {
+		return nil, "", errors.New("failed to generate token")
+	}
+
 	return user, token, nil
+}
+
+func (s *userService) UpdateProfile(userID string, req *models.UpdateProfileRequest) (*models.User, error) {
+	updatedUser, err := s.repo.UpdateProfile(userID, req)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("user not found")
+		}
+		return nil, err
+	}
+
+	return updatedUser, nil
 }
