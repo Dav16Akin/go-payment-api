@@ -101,6 +101,7 @@ func (h *userHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 				"id":    user.ID,
 				"name":  user.Name,
 				"email": user.Email,
+				"avatar_url": *user.AvatarURL,
 			},
 		}, "")
 	}
