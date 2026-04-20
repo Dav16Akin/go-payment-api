@@ -10,7 +10,7 @@ func CORSMiddleware(next http.Handler) http.Handler {
 		if origin == "http://localhost:3000" || origin == "https://paysim-sigma.vercel.app" {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 		}
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
 		// 🔥 Handle preflight request
