@@ -12,6 +12,7 @@ type UserRepository interface {
 	FindUserByID(id string) (*models.User, error)
 	FindUserByEmail(email string) (*models.User, error)
 	UpdateProfile(userID string, req *models.UpdateProfileRequest) (*models.User, error)
+	ChangePassword(userID string, newPassword string) (string, error)
 }
 
 type userRepository struct {
@@ -145,4 +146,25 @@ func (r *userRepository) UpdateProfile(userID string, req *models.UpdateProfileR
 	}
 
 	return &updatedUser, nil
+}
+
+func (r *userRepository) ChangePassword(userID string, newPassword string) (string, error) {
+	query := `UPDATE users SET password=$1 WHERE id=$2`
+
+	result, err := r.db.Exec(query, newPassword, userID)
+
+	if err != nil {
+		return "", err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return "", err
+	}
+
+	if rowsAffected == 0 {
+		return "", sql.ErrNoRows
+	}
+
+	return "password changed succesfully", nil
 }

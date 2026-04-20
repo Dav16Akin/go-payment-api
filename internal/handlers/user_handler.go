@@ -15,7 +15,7 @@ type UserHandler interface {
 	SignUp(w http.ResponseWriter, r *http.Request)
 	SignIn(w http.ResponseWriter, r *http.Request)
 	UpdateProfile(w http.ResponseWriter, r *http.Request)
-	
+	ChangePassword(w http.ResponseWriter, r *http.Request)
 }
 
 type userHandler struct {
@@ -114,7 +114,7 @@ func (h *userHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req models.UpdateProfileRequest
-	
+
 	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok {
 		utils.JSONResponse(w, http.StatusUnauthorized, nil, "unauthorized")
@@ -123,7 +123,7 @@ func (h *userHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		utils.JSONResponse(w, http.StatusBadRequest, nil, "invalid requeest body")
+		utils.JSONResponse(w, http.StatusBadRequest, nil, "invalid request body")
 		return
 	}
 
@@ -140,5 +140,36 @@ func (h *userHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSONResponse(w, http.StatusCreated, response, "")
+
+}
+
+func (h *userHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPatch {
+		utils.JSONResponse(w, http.StatusMethodNotAllowed, nil, "method not allowed")
+		return
+	}
+
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+	if !ok {
+		utils.JSONResponse(w, http.StatusUnauthorized, nil, "unauthorized")
+		return
+	}
+
+	var req models.ChangePasswordRequest
+
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		utils.JSONResponse(w, http.StatusBadRequest, nil , "invalid request body")
+		return
+	}
+
+	msg , err := h.service.ChangePassword(userID, &req)
+	if err != nil {
+		utils.JSONResponse(w, http.StatusBadRequest, nil , err.Error())
+		return
+	}
+
+
+	utils.JSONResponse(w, http.StatusOK, msg, "")
 
 }

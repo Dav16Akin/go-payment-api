@@ -15,6 +15,7 @@ type UserService interface {
 	SignUp(user *models.User) (*models.User, error)
 	SignIn(req *models.SignInRequest) (*models.User, string, error)
 	UpdateProfile(userID string, req *models.UpdateProfileRequest) (*models.User, error)
+	ChangePassword(userID string, req *models.ChangePasswordRequest) (string, error)
 }
 
 type userService struct {
@@ -105,4 +106,27 @@ func (s *userService) UpdateProfile(userID string, req *models.UpdateProfileRequ
 	}
 
 	return updatedUser, nil
+}
+
+func (s *userService) ChangePassword(userID string, req *models.ChangePasswordRequest) (string, error) {
+	user, err := s.repo.FindUserByID(userID)
+	if err != nil {
+		return "", errors.New("user not found")
+	}
+
+	if req.NewPassword == req.OldPassword {
+		return "", errors.New("old password and new password are same")
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.OldPassword))
+	if err != nil {
+		return "", errors.New("invalid old password")
+	}
+
+	newPasswordHashed, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+
+	return s.repo.ChangePassword(userID, string(newPasswordHashed))
 }

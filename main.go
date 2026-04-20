@@ -72,6 +72,7 @@ func main() {
 	mux.Handle("/transactions/user", protectedHandler(transactionHandler.GetByUser))
 	mux.Handle("/wallet", protectedHandler(walletHandler.GetWallet))
 	mux.Handle("/users/profile", protectedHandler(userHandler.UpdateProfile))
+	mux.Handle("/users/password", protectedHandler(userHandler.ChangePassword))
 
 	handler := middleware.Logging(middleware.CORSMiddleware(mux))
 
