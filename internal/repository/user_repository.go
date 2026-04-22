@@ -9,8 +9,10 @@ import (
 
 type UserRepository interface {
 	CreateUserWithWallet(user *models.User, wallet *models.Wallet) error
+
 	FindUserByID(id string) (*models.User, error)
 	FindUserByEmail(email string) (*models.User, error)
+
 	UpdateProfile(userID string, req *models.UpdateProfileRequest) (*models.User, error)
 	ChangePassword(userID string, newPassword string) (string, error)
 }

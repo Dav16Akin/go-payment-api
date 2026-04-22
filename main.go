@@ -49,8 +49,9 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	transactionRepo := repository.NewTransactionRepository(db)
 	walletRepo := repository.NewWalletRepository(db)
+	tokenRepo := repository.NewTokenRepository(db)
 
-	userService := services.NewUserService(userRepo, walletRepo)
+	userService := services.NewUserService(userRepo, walletRepo, tokenRepo)
 	userHandler := handlers.NewUserHandler(userService)
 
 	transactionService := services.NewTransactionService(walletRepo, transactionRepo)

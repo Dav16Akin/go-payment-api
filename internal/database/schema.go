@@ -27,6 +27,17 @@ const createTransactionsTable = `
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);`
 
+const createRefreshTokenTable = `
+	CREATE TABLE IF NOT EXISTS refresh_tokens (
+		id UUID PRIMARY KEY,
+		user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		token TEXT NOT NULL UNIQUE,
+		expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+		last_used_at TIMESTAMP WITH TIME ZONE,
+		revoked BOOLEAN DEFAULT FALSE
+	);
+`
 const createMigrationsTable = `
 CREATE TABLE IF NOT EXISTS migrations (
 	id SERIAL PRIMARY KEY,
@@ -44,6 +55,10 @@ var migrations = []Migration{
 	{
 		Name:  "add_avatar_url_to_users",
 		Query: `ALTER TABLE users ADD COLUMN avatar_url TEXT;`,
+	},
+	{
+		Name:  "rename_token_to_token_hash_at_refresh_tokens",
+		Query: `ALTER TABLE refresh_tokens RENAME COLUMN token TO token_hash;`,
 	},
 }
 
@@ -89,7 +104,20 @@ func InitializeDB(db *sql.DB) error {
 		createWalletsTable,
 		createTransactionsTable,
 		createMigrationsTable,
+		createRefreshTokenTable,
 	}
+
+	db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+	`)
+
+	db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
+	`)
+
+	db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token_revoked ON refresh_tokens(token, revoked);
+	`)
 
 	for _, query := range queries {
 		_, err := db.Exec(query)

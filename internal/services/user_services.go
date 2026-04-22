@@ -3,6 +3,7 @@ package services
 import (
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/Dav16Akin/payment-api/internal/models"
 	"github.com/Dav16Akin/payment-api/internal/repository"
@@ -13,18 +14,23 @@ import (
 
 type UserService interface {
 	SignUp(user *models.User) (*models.User, error)
-	SignIn(req *models.SignInRequest) (*models.User, string, error)
+	SignIn(req *models.SignInRequest) (*models.User, string, string, error)
+
+	RefreshToken(token string) (string, string, error)
+	Logout(token string) error
+
 	UpdateProfile(userID string, req *models.UpdateProfileRequest) (*models.User, error)
 	ChangePassword(userID string, req *models.ChangePasswordRequest) (string, error)
 }
 
 type userService struct {
-	repo       repository.UserRepository
+	userRepo       repository.UserRepository
 	walletRepo repository.WalletRepository
+	tokenRepo  repository.RefreshTokenRepository
 }
 
-func NewUserService(repo repository.UserRepository, walletRepo repository.WalletRepository) UserService {
-	return &userService{repo: repo, walletRepo: walletRepo}
+func NewUserService(userRepo repository.UserRepository, walletRepo repository.WalletRepository, tokenRepo repository.RefreshTokenRepository) UserService {
+	return &userService{userRepo: userRepo, walletRepo: walletRepo, tokenRepo: tokenRepo}
 }
 
 func (s *userService) SignUp(user *models.User) (*models.User, error) {
@@ -40,7 +46,7 @@ func (s *userService) SignUp(user *models.User) (*models.User, error) {
 		return nil, errors.New("Email is required")
 	}
 
-	existingUser, err := s.repo.FindUserByEmail(user.Email)
+	existingUser, err := s.userRepo.FindUserByEmail(user.Email)
 
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
@@ -70,34 +76,110 @@ func (s *userService) SignUp(user *models.User) (*models.User, error) {
 		Balance: 500.00,
 	}
 
-	if err := s.repo.CreateUserWithWallet(userData, wallet); err != nil {
+	if err := s.userRepo.CreateUserWithWallet(userData, wallet); err != nil {
 		return nil, err
 	}
 
 	return user, nil
 }
 
-func (s *userService) SignIn(req *models.SignInRequest) (*models.User, string, error) {
-	user, err := s.repo.FindUserByEmail(req.Email)
+func (s *userService) SignIn(req *models.SignInRequest) (*models.User, string, string, error) {
+	user, err := s.userRepo.FindUserByEmail(req.Email)
 	if err != nil {
-		return nil, "", errors.New("user not found")
+		return nil, "", "", errors.New("user not found")
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil {
-		return nil, "", errors.New("invalid credentials")
+		return nil, "", "", errors.New("invalid credentials")
 	}
 
-	token, err := utils.GenerateJWT(user.ID)
+	accessToken, err := utils.GenerateJWT(user.ID)
 	if err != nil {
-		return nil, "", errors.New("failed to generate token")
+		return nil, "", "", errors.New("failed to generate token")
 	}
 
-	return user, token, nil
+	refreshToken, err := utils.GenerateRandomToken()
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	hashed := utils.HashToken(refreshToken)
+
+	rt := models.RefreshToken{
+		ID:        uuid.New().String(),
+		UserID:    user.ID,
+		TokenHash: hashed,
+		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+		LastUsedAt: time.Now(),
+		Revoked:   false,
+	}
+
+	if err := s.tokenRepo.Create(&rt); err != nil {
+		return nil, "", "", err
+	}
+
+	return user, accessToken, refreshToken, nil
+}
+
+func (s *userService) RefreshToken(token string) (string, string, error) {
+	hashed := utils.HashToken(token)
+
+	stored, err := s.tokenRepo.FindByTokenHash(hashed)
+	if err != nil {
+		return "", "", errors.New("invalid refresh token")
+	}
+
+	if stored.Revoked {
+		return "", "", errors.New("token revoked")
+	}
+
+	if stored.ExpiresAt.Before(time.Now()) {
+		return "", "", errors.New("token expired")
+	}
+
+	if err := s.tokenRepo.Revoke(stored.ID); err != nil {
+		return "", "", err
+	}
+
+	newAccess, err := utils.GenerateJWT(stored.UserID)
+	if err != nil {
+		return "", "", err
+	}
+
+	newRefresh, err := utils.GenerateRandomToken()
+	if err != nil {
+		return "", "", err
+	}
+
+	newRT := &models.RefreshToken{
+		ID:        uuid.New().String(),
+		UserID:    stored.UserID,
+		TokenHash: utils.HashToken(newRefresh),
+		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+		CreatedAt: time.Now(),
+	}
+
+	if err := s.tokenRepo.Create(newRT); err != nil {
+		return "", "", err
+	}
+
+	return newAccess, newRefresh, nil
+}
+
+func (s *userService) Logout(token string) error {
+	hashed := utils.HashToken(token)
+
+	stored, err := s.tokenRepo.FindByTokenHash(hashed)
+	if err != nil {
+		return errors.New("invalid token")
+	}
+
+	return s.tokenRepo.Revoke(stored.ID)
 }
 
 func (s *userService) UpdateProfile(userID string, req *models.UpdateProfileRequest) (*models.User, error) {
-	updatedUser, err := s.repo.UpdateProfile(userID, req)
+	updatedUser, err := s.userRepo.UpdateProfile(userID, req)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("user not found")
@@ -109,7 +191,7 @@ func (s *userService) UpdateProfile(userID string, req *models.UpdateProfileRequ
 }
 
 func (s *userService) ChangePassword(userID string, req *models.ChangePasswordRequest) (string, error) {
-	user, err := s.repo.FindUserByID(userID)
+	user, err := s.userRepo.FindUserByID(userID)
 	if err != nil {
 		return "", errors.New("user not found")
 	}
@@ -128,5 +210,15 @@ func (s *userService) ChangePassword(userID string, req *models.ChangePasswordRe
 		return "", err
 	}
 
-	return s.repo.ChangePassword(userID, string(newPasswordHashed))
+	str, err := s.userRepo.ChangePassword(userID, string(newPasswordHashed))
+	if err != nil {
+		return "", err
+	}
+
+	err = s.tokenRepo.RevokeAllByUserID(userID)
+	if err != nil {
+		return  "", err
+	}
+
+	return str, nil
 }

@@ -75,36 +75,45 @@ func (h *userHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Method == "POST" {
-		var req models.SignInRequest
+	var req models.SignInRequest
 
-		err := json.NewDecoder(r.Body).Decode(&req)
-		if err != nil {
-			utils.JSONResponse(w, http.StatusBadRequest, nil, "invalid credentials")
-			return
-		}
-
-		request := models.SignInRequest{
-			Email:    req.Email,
-			Password: req.Password,
-		}
-
-		user, token, err := h.service.SignIn(&request)
-		if err != nil {
-			utils.JSONResponse(w, http.StatusUnauthorized, nil, err.Error())
-			return
-		}
-
-		utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
-			"token": token,
-			"user": map[string]string{
-				"id":    user.ID,
-				"name":  user.Name,
-				"email": user.Email,
-				"avatar_url": *user.AvatarURL,
-			},
-		}, "")
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		utils.JSONResponse(w, http.StatusBadRequest, nil, "invalid requeest body")
+		return
 	}
+
+	user, accessToken, refreshToken, err := h.service.SignIn(&req)
+	if err != nil {
+		utils.JSONResponse(w, http.StatusUnauthorized, nil, err.Error())
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refreshToken",
+		Value:    refreshToken,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   7 * 24 * 60 * 60,
+	})
+
+	avatarURL := ""
+	if user.AvatarURL != nil {
+		avatarURL = *user.AvatarURL
+	}
+
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+		"accessToken": accessToken,
+		"user": map[string]string{
+			"id":         user.ID,
+			"name":       user.Name,
+			"email":      user.Email,
+			"avatar_url": avatarURL,
+		},
+	}, "")
+
 }
 
 func (h *userHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
@@ -160,16 +169,15 @@ func (h *userHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		utils.JSONResponse(w, http.StatusBadRequest, nil , "invalid request body")
+		utils.JSONResponse(w, http.StatusBadRequest, nil, "invalid request body")
 		return
 	}
 
-	msg , err := h.service.ChangePassword(userID, &req)
+	msg, err := h.service.ChangePassword(userID, &req)
 	if err != nil {
-		utils.JSONResponse(w, http.StatusBadRequest, nil , err.Error())
+		utils.JSONResponse(w, http.StatusBadRequest, nil, err.Error())
 		return
 	}
-
 
 	utils.JSONResponse(w, http.StatusOK, msg, "")
 
