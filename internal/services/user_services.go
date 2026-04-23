@@ -14,7 +14,7 @@ import (
 
 type UserService interface {
 	SignUp(user *models.User) (*models.User, error)
-	SignIn(req *models.SignInRequest) (*models.User, string, string, error)
+	SignIn(req *models.SignInRequest) (string, string, error)
 
 	RefreshToken(token string) (string, string, error)
 	Logout(token string) error
@@ -24,7 +24,7 @@ type UserService interface {
 }
 
 type userService struct {
-	userRepo       repository.UserRepository
+	userRepo   repository.UserRepository
 	walletRepo repository.WalletRepository
 	tokenRepo  repository.RefreshTokenRepository
 }
@@ -83,43 +83,43 @@ func (s *userService) SignUp(user *models.User) (*models.User, error) {
 	return user, nil
 }
 
-func (s *userService) SignIn(req *models.SignInRequest) (*models.User, string, string, error) {
+func (s *userService) SignIn(req *models.SignInRequest) (string, string, error) {
 	user, err := s.userRepo.FindUserByEmail(req.Email)
 	if err != nil {
-		return nil, "", "", errors.New("user not found")
+		return "", "", errors.New("user not found")
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil {
-		return nil, "", "", errors.New("invalid credentials")
+		return "", "", errors.New("invalid password")
 	}
 
 	accessToken, err := utils.GenerateJWT(user.ID)
 	if err != nil {
-		return nil, "", "", errors.New("failed to generate token")
+		return "", "", errors.New("failed to generate token")
 	}
 
 	refreshToken, err := utils.GenerateRandomToken()
 	if err != nil {
-		return nil, "", "", err
+		return "", "", err
 	}
 
 	hashed := utils.HashToken(refreshToken)
 
 	rt := models.RefreshToken{
-		ID:        uuid.New().String(),
-		UserID:    user.ID,
-		TokenHash: hashed,
-		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+		ID:         uuid.New().String(),
+		UserID:     user.ID,
+		TokenHash:  hashed,
+		ExpiresAt:  time.Now().Add(7 * 24 * time.Hour),
 		LastUsedAt: time.Now(),
-		Revoked:   false,
+		Revoked:    false,
 	}
 
 	if err := s.tokenRepo.Create(&rt); err != nil {
-		return nil, "", "", err
+		return "", "", err
 	}
 
-	return user, accessToken, refreshToken, nil
+	return accessToken, refreshToken, nil
 }
 
 func (s *userService) RefreshToken(token string) (string, string, error) {
@@ -217,7 +217,7 @@ func (s *userService) ChangePassword(userID string, req *models.ChangePasswordRe
 
 	err = s.tokenRepo.RevokeAllByUserID(userID)
 	if err != nil {
-		return  "", err
+		return "", err
 	}
 
 	return str, nil

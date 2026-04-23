@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Dav16Akin/payment-api/internal/middleware"
 	"github.com/Dav16Akin/payment-api/internal/models"
 	"github.com/Dav16Akin/payment-api/internal/services"
 	"github.com/Dav16Akin/payment-api/internal/utils"
@@ -29,33 +30,32 @@ func (h *transactionHandler) Transfer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Method == "POST" {
-		var req models.TransactionRequest
+	var req models.TransactionRequest
 
-		err := json.NewDecoder(r.Body).Decode(&req)
-		if err != nil {
-			utils.JSONResponse(w, http.StatusBadRequest, nil, "invalid request body")
-			return
-		}
-
-		defer r.Body.Close()
-
-		transaction := models.Transaction{
-			SenderID:   req.SenderID,
-			ReceiverID: req.ReceiverID,
-			Amount:     req.Amount,
-			Status:     "pending",
-		}
-
-		if err := h.services.Transfer(&transaction); err != nil {
-			utils.JSONResponse(w, http.StatusBadRequest, nil, err.Error())
-			return
-		}
-
-		utils.JSONResponse(w, http.StatusCreated, map[string]string{
-			"message": "transfer successful",
-		}, "")
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		utils.JSONResponse(w, http.StatusBadRequest, nil, "invalid request body")
+		return
 	}
+
+	defer r.Body.Close()
+
+	transaction := models.Transaction{
+		SenderID:   req.SenderID,
+		ReceiverID: req.ReceiverID,
+		Amount:     req.Amount,
+		Status:     "pending",
+	}
+
+	if err := h.services.Transfer(&transaction); err != nil {
+		utils.JSONResponse(w, http.StatusBadRequest, nil, err.Error())
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusCreated, map[string]string{
+		"message": "transfer successful",
+	}, "")
+
 }
 
 func (h *transactionHandler) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -64,15 +64,14 @@ func (h *transactionHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Method == "GET" {
-		transactions, err := h.services.GetAll()
-		if err != nil {
-			utils.JSONResponse(w, http.StatusInternalServerError, nil, "cannot get transactions")
-			return
-		}
-
-		utils.JSONResponse(w, http.StatusOK, transactions, "")
+	transactions, err := h.services.GetAll()
+	if err != nil {
+		utils.JSONResponse(w, http.StatusInternalServerError, nil, "cannot get transactions")
+		return
 	}
+
+	utils.JSONResponse(w, http.StatusOK, transactions, "")
+
 }
 
 func (h *transactionHandler) GetByUser(w http.ResponseWriter, r *http.Request) {
@@ -81,20 +80,18 @@ func (h *transactionHandler) GetByUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Method == "GET" {
-		id := r.URL.Query().Get("user_id")
-
-		if id == "" {
-			utils.JSONResponse(w, http.StatusBadRequest, nil, "user_id is required")
-			return
-		}
-
-		transactions , err := h.services.GetByUser(id)
-		if err != nil {
-			utils.JSONResponse(w, http.StatusNotFound, nil, "no transactions found")
-			return
-		}
-
-		utils.JSONResponse(w, http.StatusOK, transactions, "")
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+	if !ok {
+		utils.JSONResponse(w, http.StatusUnauthorized, nil, "unauthorized")
+		return
 	}
+
+	transactions, err := h.services.GetByUser(userID)
+	if err != nil {
+		utils.JSONResponse(w, http.StatusNotFound, nil, "no transactions found")
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, transactions, "")
+
 }

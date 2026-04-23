@@ -66,12 +66,19 @@ func main() {
 		return protected(h)
 	}
 
+
+	//AUTHENTICATION
 	mux.HandleFunc("/sign-up", userHandler.SignUp)
 	mux.HandleFunc("/sign-in", userHandler.SignIn)
+	mux.HandleFunc("/refresh", userHandler.RefreshToken)
+
+	//TRANSACTIONS AND WALLETS
 	mux.Handle("/transfer", protectedHandler(transactionHandler.Transfer))
 	mux.Handle("/transactions", protectedHandler(transactionHandler.GetAll))
 	mux.Handle("/transactions/user", protectedHandler(transactionHandler.GetByUser))
 	mux.Handle("/wallet", protectedHandler(walletHandler.GetWallet))
+
+	//USERS
 	mux.Handle("/users/profile", protectedHandler(userHandler.UpdateProfile))
 	mux.Handle("/users/password", protectedHandler(userHandler.ChangePassword))
 

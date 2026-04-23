@@ -16,6 +16,7 @@ type UserHandler interface {
 	SignIn(w http.ResponseWriter, r *http.Request)
 	UpdateProfile(w http.ResponseWriter, r *http.Request)
 	ChangePassword(w http.ResponseWriter, r *http.Request)
+	RefreshToken(w http.ResponseWriter, r *http.Request)
 }
 
 type userHandler struct {
@@ -83,7 +84,7 @@ func (h *userHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, accessToken, refreshToken, err := h.service.SignIn(&req)
+	accessToken, refreshToken, err := h.service.SignIn(&req)
 	if err != nil {
 		utils.JSONResponse(w, http.StatusUnauthorized, nil, err.Error())
 		return
@@ -93,27 +94,52 @@ func (h *userHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 		Name:     "refreshToken",
 		Value:    refreshToken,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   false,
 		Path:     "/",
 		SameSite: http.SameSiteStrictMode,
 		MaxAge:   7 * 24 * 60 * 60,
 	})
 
-	avatarURL := ""
-	if user.AvatarURL != nil {
-		avatarURL = *user.AvatarURL
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+		"accessToken": accessToken,
+	}, "")
+}
+
+func (h *userHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.JSONResponse(w, http.StatusMethodNotAllowed, nil, "method not allowed")
+		return
 	}
+
+	cookie, err := r.Cookie("refreshToken")
+	if err != nil {
+		if err == http.ErrNoCookie {
+			utils.JSONResponse(w, http.StatusBadRequest, nil, "refresh token not found")
+			return
+		}
+		utils.JSONResponse(w, http.StatusBadRequest, nil, err.Error())
+		return
+	}
+
+	accessToken, refreshToken, err := h.service.RefreshToken(cookie.Value)
+	if err != nil {
+		utils.JSONResponse(w, http.StatusUnauthorized, nil, err.Error())
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refreshToken",
+		Value:    refreshToken,
+		HttpOnly: true,
+		Secure:   false,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   7 * 24 * 60 * 60,
+	})
 
 	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
 		"accessToken": accessToken,
-		"user": map[string]string{
-			"id":         user.ID,
-			"name":       user.Name,
-			"email":      user.Email,
-			"avatar_url": avatarURL,
-		},
 	}, "")
-
 }
 
 func (h *userHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {

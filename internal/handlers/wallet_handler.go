@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"github.com/Dav16Akin/payment-api/internal/middleware"
 	"github.com/Dav16Akin/payment-api/internal/models"
 	"github.com/Dav16Akin/payment-api/internal/services"
 	"github.com/Dav16Akin/payment-api/internal/utils"
@@ -26,16 +27,14 @@ func (h *walletHandler) GetWallet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	
 	if r.Method == "GET" {
-		id := r.URL.Query().Get("user_id")
-
-		if id == "" {
-			utils.JSONResponse(w, http.StatusBadRequest, nil, "user_id is required")
+		userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+		if !ok {
+			utils.JSONResponse(w, http.StatusUnauthorized, nil, "unauthorized")
 			return
 		}
 
-		walletData, err := h.services.GetWallet(id)
+		walletData, err := h.services.GetWallet(userID)
 		if err != nil {
 			utils.JSONResponse(w, http.StatusNotFound, nil, "wallet not found")
 			return
