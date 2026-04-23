@@ -19,8 +19,9 @@ type UserService interface {
 	RefreshToken(token string) (string, string, error)
 	Logout(token string) error
 
-	UpdateProfile(userID string, req *models.UpdateProfileRequest) (*models.User, error)
-	ChangePassword(userID string, req *models.ChangePasswordRequest) (string, error)
+	GetUserProfile(userID string) (*models.User, error)
+	UpdateUserProfile(userID string, req *models.UpdateProfileRequest) (*models.User, error)
+	ChangeUserPassword(userID string, req *models.ChangePasswordRequest) (string, error)
 }
 
 type userService struct {
@@ -178,8 +179,22 @@ func (s *userService) Logout(token string) error {
 	return s.tokenRepo.Revoke(stored.ID)
 }
 
-func (s *userService) UpdateProfile(userID string, req *models.UpdateProfileRequest) (*models.User, error) {
-	updatedUser, err := s.userRepo.UpdateProfile(userID, req)
+func (s *userService) GetUserProfile(userID string) (*models.User, error) {
+
+	user, err := s.userRepo.FindUserByID(userID)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("user not found")
+		}
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (s *userService) UpdateUserProfile(userID string, req *models.UpdateProfileRequest) (*models.User, error) {
+	updatedUser, err := s.userRepo.UpdateUserProfile(userID, req)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("user not found")
@@ -190,7 +205,7 @@ func (s *userService) UpdateProfile(userID string, req *models.UpdateProfileRequ
 	return updatedUser, nil
 }
 
-func (s *userService) ChangePassword(userID string, req *models.ChangePasswordRequest) (string, error) {
+func (s *userService) ChangeUserPassword(userID string, req *models.ChangePasswordRequest) (string, error) {
 	user, err := s.userRepo.FindUserByID(userID)
 	if err != nil {
 		return "", errors.New("user not found")
@@ -210,7 +225,7 @@ func (s *userService) ChangePassword(userID string, req *models.ChangePasswordRe
 		return "", err
 	}
 
-	str, err := s.userRepo.ChangePassword(userID, string(newPasswordHashed))
+	str, err := s.userRepo.ChangeUserPassword(userID, string(newPasswordHashed))
 	if err != nil {
 		return "", err
 	}

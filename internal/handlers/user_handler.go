@@ -14,8 +14,11 @@ import (
 type UserHandler interface {
 	SignUp(w http.ResponseWriter, r *http.Request)
 	SignIn(w http.ResponseWriter, r *http.Request)
-	UpdateProfile(w http.ResponseWriter, r *http.Request)
-	ChangePassword(w http.ResponseWriter, r *http.Request)
+
+	GetUserProfile(w http.ResponseWriter, r *http.Request)
+	UpdateUserProfile(w http.ResponseWriter, r *http.Request)
+	ChangeUserPassword(w http.ResponseWriter, r *http.Request)
+
 	RefreshToken(w http.ResponseWriter, r *http.Request)
 }
 
@@ -142,7 +145,38 @@ func (h *userHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}, "")
 }
 
-func (h *userHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+func (h *userHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		utils.JSONResponse(w, http.StatusMethodNotAllowed, nil, "method not allowed")
+		return
+	}
+
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+	if !ok {
+		utils.JSONResponse(w, http.StatusUnauthorized, nil, "unauthorized")
+		return
+	}
+
+	user, err := h.service.GetUserProfile(userID)
+	if err != nil {
+		utils.JSONResponse(w, http.StatusBadRequest, nil, err.Error())
+		return
+	}
+
+	avatarURL := ""
+	if user.AvatarURL != nil {
+		avatarURL = *user.AvatarURL
+	}
+
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{"user": map[string]string{
+		"id":         user.ID,
+		"name":       user.Name,
+		"email":      user.Email,
+		"avatar_url": avatarURL,
+	}}, "")
+}
+
+func (h *userHandler) UpdateUserProfile(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPatch {
 		utils.JSONResponse(w, http.StatusMethodNotAllowed, nil, "method not allowed")
@@ -163,7 +197,7 @@ func (h *userHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.service.UpdateProfile(userID, &req)
+	user, err := h.service.UpdateUserProfile(userID, &req)
 	if err != nil {
 		utils.JSONResponse(w, http.StatusBadRequest, nil, err.Error())
 		return
@@ -179,7 +213,7 @@ func (h *userHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (h *userHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+func (h *userHandler) ChangeUserPassword(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPatch {
 		utils.JSONResponse(w, http.StatusMethodNotAllowed, nil, "method not allowed")
 		return
@@ -199,7 +233,7 @@ func (h *userHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg, err := h.service.ChangePassword(userID, &req)
+	msg, err := h.service.ChangeUserPassword(userID, &req)
 	if err != nil {
 		utils.JSONResponse(w, http.StatusBadRequest, nil, err.Error())
 		return

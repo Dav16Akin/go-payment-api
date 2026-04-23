@@ -66,7 +66,6 @@ func main() {
 		return protected(h)
 	}
 
-
 	//AUTHENTICATION
 	mux.HandleFunc("/sign-up", userHandler.SignUp)
 	mux.HandleFunc("/sign-in", userHandler.SignIn)
@@ -79,13 +78,14 @@ func main() {
 	mux.Handle("/wallet", protectedHandler(walletHandler.GetWallet))
 
 	//USERS
-	mux.Handle("/users/profile", protectedHandler(userHandler.UpdateProfile))
-	mux.Handle("/users/password", protectedHandler(userHandler.ChangePassword))
+	mux.Handle("/users/profile", protectedHandler(userHandler.UpdateUserProfile))
+	mux.Handle("/users", protectedHandler(userHandler.GetUserProfile))
+	mux.Handle("/users/password", protectedHandler(userHandler.ChangeUserPassword))
 
 	handler := middleware.Logging(middleware.CORSMiddleware(mux))
 
 	fmt.Println("Server running on PORT", port)
 	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatal(err)
+		log.Fatal(err) 
 	}
 }
