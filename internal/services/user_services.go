@@ -87,7 +87,15 @@ func (s *userService) SignUp(user *models.User) (*models.User, error) {
 func (s *userService) SignIn(req *models.SignInRequest) (string, string, error) {
 	user, err := s.userRepo.FindUserByEmail(req.Email)
 	if err != nil {
-		return "", "", errors.New("user not found")
+		if err == sql.ErrNoRows {
+			return "", "", errors.New("user not found")
+		}
+
+		return "", "", err
+	}
+
+	if user == nil {
+		return "", "", errors.New("invalid credentials")
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))

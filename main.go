@@ -32,6 +32,7 @@ func main() {
 		log.Fatal("Failed to connect to DB:", err)
 	}
 	defer db.Close()
+
 	log.Println("DB connected successfully")
 
 	if err := database.InitializeDB(db); err != nil {
@@ -86,6 +87,6 @@ func main() {
 
 	fmt.Println("Server running on PORT", port)
 	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatal(err) 
+		log.Fatal(err)
 	}
 }

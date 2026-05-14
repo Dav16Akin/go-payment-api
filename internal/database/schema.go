@@ -115,9 +115,14 @@ func InitializeDB(db *sql.DB) error {
 		CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
 	`)
 
-	db.Exec(`
-		CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token_revoked ON refresh_tokens(token, revoked);
-	`)
+	_, err := db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token_revoked 
+		ON refresh_tokens(token_hash, revoked);
+    `)
+
+	if err != nil {
+		return err
+	}
 
 	for _, query := range queries {
 		_, err := db.Exec(query)
